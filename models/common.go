@@ -1,7 +1,7 @@
 package models
 
 import (
-	"strings"
+	"bytes"
 	"unicode/utf8"
 
 	"github.com/syndtr/goleveldb/leveldb"
@@ -9,15 +9,15 @@ import (
 
 var db *leveldb.DB
 
-const (
-	minUnicodeRuneValue   = 0
+var (
+	minUnicodeRuneValue   = []byte(string(0))
 	maxUnicodeRuneValue   = utf8.MaxRune
-	compositeKeyNamespace = "\x00"
+	compositeKeyNamespace = []byte("\x00")
 )
 
-const (
-	primaryPrefix = "pk"
-	indexPrefix   = "idx"
+var (
+	primaryPrefix = []byte("pk")
+	indexPrefix   = []byte("idx")
 )
 
 func init() {
@@ -38,9 +38,14 @@ func initLevelDB() {
 }
 
 // CreateCompositeKey ...
-func CreateCompositeKey(objectType string, attributes ...string) []byte {
-	ck := compositeKeyNamespace + objectType + strings.Join(attributes, string(minUnicodeRuneValue))
-	return []byte(ck)
+func CreateCompositeKey(objectType []byte, attributes ...[]byte) []byte {
+
+	ckByte := [][]byte{compositeKeyNamespace, objectType}
+	ckByte = append(ckByte, attributes...)
+
+	ck := bytes.Join(ckByte, minUnicodeRuneValue)
+
+	return ck
 }
 
 // Put ...
@@ -53,19 +58,57 @@ func Get(key []byte) ([]byte, error) {
 	return db.Get(key, nil)
 }
 
-// WriteBatch ...
-type WriteBatch struct {
-	leveldb.Batch
+// Record 对应于一条记录
+type Record struct {
+	pk     []byte
+	indexs [][]byte
+
+	data Marshable
 }
 
-// NewBatch ...
-func NewBatch() WriteBatch {
-	return WriteBatch{
-		leveldb.Batch{},
+// Marshable ...
+type Marshable interface {
+	Marshal() ([]byte, error)
+}
+
+// NewRecord ...NewRecordWithData
+func NewRecord(pk []byte, data Marshable) Record {
+	return Record{
+		pk:   pk,
+		data: data,
 	}
 }
 
-// Write ...
-func (w *WriteBatch) Write() error {
-	return db.Write(&w.Batch, nil)
+// AddIndex ...
+func (r *Record) AddIndex(idx []byte) {
+	r.indexs = append(r.indexs, idx)
+}
+
+// Commit ...
+func (r *Record) Commit() error {
+	data, err := Get(r.pk)
+	if err != nil {
+		return err
+	} else if data != nil {
+		// data already exist
+		// it's fine just cover
+		// 覆盖掉就好了，数据已经存在也没关系
+	}
+
+	var batch leveldb.Batch
+
+	data, err = r.data.Marshal()
+	if err != nil {
+		return err
+	}
+
+	// 主键指向具体的数据
+	batch.Put(r.pk, data)
+
+	// 索引指向主键
+	for _, idxKey := range r.indexs {
+		batch.Put(idxKey, r.pk)
+	}
+
+	return db.Write(&batch, nil)
 }

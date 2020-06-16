@@ -30,6 +30,15 @@ func errAndInfo(c *gin.Context, errCode models.ERRCODE) {
 	return
 }
 
+func okButNoData(c *gin.Context) {
+	c.JSON(200, gin.H{
+		"code":    models.OK,
+		"message": models.ErrMap[models.OK],
+		"data":    nil,
+	})
+	return
+}
+
 func checkKey(key string) bool {
 	if !utf8.ValidString(key) {
 		return false

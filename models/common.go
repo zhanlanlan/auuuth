@@ -15,6 +15,11 @@ const (
 	compositeKeyNamespace = "\x00"
 )
 
+const (
+	primaryPrefix = "pk"
+	indexPrefix   = "idx"
+)
+
 func init() {
 	initLevelDB()
 }
@@ -60,6 +65,7 @@ func NewBatch() WriteBatch {
 	}
 }
 
+// Write ...
 func (w *WriteBatch) Write() error {
 	return db.Write(&w.Batch, nil)
 }

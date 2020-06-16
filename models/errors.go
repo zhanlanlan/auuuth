@@ -19,6 +19,7 @@ const (
 
 // ErrMap ...
 var ErrMap map[ERRCODE]string = map[ERRCODE]string{
+	OK:            "okok no bb",
 	BadRequestErr: "request data is not valid",
 	InternalErr:   "server internal error",
 

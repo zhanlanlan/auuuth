@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"auuuth/models"
+	"auuuth/services"
 	"auuuth/utils/logger"
 
 	"github.com/gin-gonic/gin"
@@ -20,12 +21,20 @@ func AddUser(c *gin.Context) {
 	// check if key is valid
 	if !checkKey(user.ID) {
 		logger.Error(models.ErrMap[models.InvalidKeyErr])
-		errAndInfo(c, models.InternalErr)
+		errAndInfo(c, models.BadRequestErr)
 		return
 	}
 
 	// store in leveldb
+	if err := services.AddUser(user); err != nil {
+		// 无法存入数据库就是服务器内部错误
+		logger.Error(err)
+		errAndInfo(c, models.InternalErr)
+		return
+	}
 
+	okButNoData(c)
+	return
 }
 
 // DeleteUSer ...
